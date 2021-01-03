@@ -26,8 +26,9 @@ float* conV(float* in, int level) {
     conv_param conv = conv_params[level]; 
     int ouSize;//the size of output
     int conv_add = 0;
-    if (conv.stride == 2) ouSize = now_size / 2;
-    else ouSize = 30;
+    if (level == 0) ouSize = now_size / 2;
+    else if (level == 1) ouSize = 30;
+    else ouSize = 8;
     float* ou = new float[(conv.out_channels)*ouSize*ouSize]{ 0 };
     float* window = new float[10];
     int ou_size = 0;
@@ -64,13 +65,13 @@ float* conV(float* in, int level) {
                 }
                 else{
                     //pad 2
-                    windowPosi[1] = -1; //col * 2 * now_size + inpu_size * now_size * now_size;
+                    windowPosi[1] = -100; //col * 2 * now_size + inpu_size * now_size * now_size;
                     windowPosi[2] = (col * 2 - 1) * now_size + inpu_size * now_size * now_size;
                     windowPosi[3] = (col * 2 - 1) * now_size + 1 + inpu_size * now_size * now_size;
-                    windowPosi[4] = -1; //(col * 2 + 1) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[4] = -100; //(col * 2 + 1) * now_size + inpu_size * now_size * now_size;
                     windowPosi[5] = (col * 2 ) * now_size + inpu_size * now_size * now_size;
                     windowPosi[6] = (col * 2 ) * now_size + 1 + inpu_size * now_size * now_size;
-                    windowPosi[7] = -1; //(col * 2 + 2) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[7] = -100; //(col * 2 + 2) * now_size + inpu_size * now_size * now_size;
                     windowPosi[8] = (col * 2 + 1) * now_size + inpu_size * now_size * now_size;
                     windowPosi[9] = (col * 2 + 1) * now_size + 1 + inpu_size * now_size * now_size;
                     
@@ -82,22 +83,23 @@ float* conV(float* in, int level) {
                 }
                 for (int row = 1; row < loopNum +1; row++)
                 {
-                    //std::cout << "ou[" << ou_add << "] = ";
+                    if(level==2)std::cout << inpu_size<< ": ou[" << ou_add << "] = ";
                     for (int i = 1; i < 10; i++)
                     {
                         if (windowPosi[i] >=0) {
                             ou[ou_add] += in[windowPosi[i]] * window[i];
-                            //std::cout << in[windowPosi[i]] * window[i] <<"("<< windowPosi[i] <<")+";
+                            if (level == 2)std::cout << in[windowPosi[i]] * window[i] <<"("<< windowPosi[i] <<")+";
                         }
                         else {
-                            if (col == 0) { windowPosi[1] = -3; windowPosi[2] = -3;windowPosi[3] = -3;}
-                            else {windowPosi[i] = windowPosi[i + 1] - 1;}
-                            //std::cout << 0 << "(" << -1 << ")+";
+                            windowPosi[i] = windowPosi[i + 1] - 1;
+                            if (col == 0) { windowPosi[1] = -100; windowPosi[2] = -100;windowPosi[3] = -100;}
+                            
+                            if (level == 2)std::cout << 0 << "(" << -1 << ")+";
                         }
                         
                         windowPosi[i] = windowPosi[i] + conv.stride;
                     }
-                    //std::cout << " = "<<ou[ou_add]<<" at ("<<col<<","<<row-1<<")\n";
+                    if (level == 2)std::cout << " = "<<ou[ou_add]<<" at ("<<col<<","<<row-1<<")\n";
                     ou[ou_add] += conv.p_bias[ou_size]/conv.in_channels;
                     
                     ou_add++;
@@ -199,12 +201,12 @@ int main() {
     now_size = 15;
     thep = conV(thep, 2);//32x8x8
     //test start
-    for (int i = 0; i < 7200; i++)//4096 65536
+    for (int i = 0; i < 2048; i++)//4096 65536
     {
         std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
     }
     //std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
-    std::cout << "posi: " << 7200 << " num:" << thep[7200] << std::endl;
+    std::cout << "posi: " << 2048 << " num:" << thep[2048] << std::endl;
     //test con
     thep = reLu(thep,32*16*16);
 
