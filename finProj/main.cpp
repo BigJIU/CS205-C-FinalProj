@@ -27,7 +27,7 @@ float* conV(float* in, int level) {
     int ouSize;//the size of output
     int conv_add = 0;
     if (conv.stride == 2) ouSize = now_size / 2;
-    else ouSize = now_size;
+    else ouSize = 30;
     float* ou = new float[(conv.out_channels)*ouSize*ouSize]{ 0 };
     float* window = new float[10];
     int ou_size = 0;
@@ -46,7 +46,6 @@ float* conV(float* in, int level) {
             int* windowPosi = new int[11]{0};
             windowPosi[10] = 0;
             int loopNum = ouSize;
-            if (conv.pad == 0) loopNum = loopNum - 2;
             for (int col = 0; col < loopNum; col++)
             {
                 if(conv.pad == 0)
@@ -164,7 +163,7 @@ float* flat(float* in) {
     return ou;
 }
 int main() {
-	Mat image = imread("bg.jpg");
+	Mat image = imread("face.jpg");
     //imshow("myPic", image); 
     //waitKey(0);
  /*   conv_param conv = conv_params[0];
@@ -191,23 +190,22 @@ int main() {
     now_size = 64;
     thep = maxPool(thep,16);//16x32x32
 
-   now_size = 32;
-    thep = conV(thep, 1);
-    //test start
-    for (int i = 28000; i < 28800; i++)//4096 65536
-    {
-        
-            std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
-    }
-    std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
-    std::cout << "posi: " << 28801 << " num:" << thep[28801] << std::endl;
-    //test con
+    now_size = 32;
+    thep = conV(thep, 1);//may right 32x30x30
     now_size = 30;
     thep = reLu(thep, 32 * 30 * 30);
-    thep = maxPool(thep,30);
-    now_size = 15;
-    thep = conV(thep, 2);
+    thep = maxPool(thep,32);//may right 32x15x15
 
+    now_size = 15;
+    thep = conV(thep, 2);//32x8x8
+    //test start
+    for (int i = 0; i < 7200; i++)//4096 65536
+    {
+        std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
+    }
+    //std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
+    std::cout << "posi: " << 7200 << " num:" << thep[7200] << std::endl;
+    //test con
     thep = reLu(thep,32*16*16);
 
     thep = flat(thep);
