@@ -2,6 +2,7 @@
 #include "face_binary_cls.cpp"
 #include<exception>
 #include <algorithm>
+#include<cmath>
 #define MAX_FLOAT_SIZE 65600
 using namespace cv;
 
@@ -49,9 +50,9 @@ float* conV(float* in, int level) {
             int loopNum = ouSize;
             for (int col = 0; col < loopNum; col++)
             {
-                if(conv.pad == 0)
+                if(level == 1)
                 {
-                    //pad1 initial
+                    //level 1 initial
                     windowPosi[1] = col * now_size + inpu_size * now_size * now_size;
                     windowPosi[2] = col * now_size + 1 + inpu_size * now_size * now_size;
                     windowPosi[3] = col * now_size + 2 + inpu_size * now_size * now_size;
@@ -63,17 +64,17 @@ float* conV(float* in, int level) {
                     windowPosi[9] = (col + 2) * now_size + 2 + inpu_size * now_size * now_size;
                     
                 }
-                else{
-                    //pad 2
+                else if(level == 0) {
+                    //level 0
                     windowPosi[1] = -100; //col * 2 * now_size + inpu_size * now_size * now_size;
-                    windowPosi[2] = (col * 2 - 1) * now_size + inpu_size * now_size * now_size;
-                    windowPosi[3] = (col * 2 - 1) * now_size + 1 + inpu_size * now_size * now_size;
+                    windowPosi[2] = (col * 2 ) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[3] = (col * 2 ) * now_size + 1 + inpu_size * now_size * now_size;
                     windowPosi[4] = -100; //(col * 2 + 1) * now_size + inpu_size * now_size * now_size;
-                    windowPosi[5] = (col * 2 ) * now_size + inpu_size * now_size * now_size;
-                    windowPosi[6] = (col * 2 ) * now_size + 1 + inpu_size * now_size * now_size;
+                    windowPosi[5] = (col * 2 + 1) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[6] = (col * 2 + 1) * now_size + 1 + inpu_size * now_size * now_size;
                     windowPosi[7] = -100; //(col * 2 + 2) * now_size + inpu_size * now_size * now_size;
-                    windowPosi[8] = (col * 2 + 1) * now_size + inpu_size * now_size * now_size;
-                    windowPosi[9] = (col * 2 + 1) * now_size + 1 + inpu_size * now_size * now_size;
+                    windowPosi[8] = (col * 2 + 2) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[9] = (col * 2 + 2) * now_size + 1 + inpu_size * now_size * now_size;
                     
                     if (col == 0) {
                         windowPosi[2] = -1;
@@ -81,25 +82,43 @@ float* conV(float* in, int level) {
                     }
                     
                 }
-                for (int row = 1; row < loopNum +1; row++)
+                else {
+                    //level 2
+                    windowPosi[1] = -100; //col * 2 * now_size + inpu_size * now_size * now_size;
+                    windowPosi[2] = -100;
+                    windowPosi[3] = (col * 2 - 2) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[4] = -100; //(col * 2 + 1) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[5] = -100;
+                    windowPosi[6] = (col * 2 - 1) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[7] = -100; //(col * 2 + 2) * now_size + inpu_size * now_size * now_size;
+                    windowPosi[8] = -100;
+                    windowPosi[9] = (col * 2) * now_size + inpu_size * now_size * now_size;
+
+                    if (col == 0) {
+                        windowPosi[2] = -100;
+                        windowPosi[3] = -100;
+                    }
+                }
+                for (int row =  1; row < loopNum + 1; row ++)
                 {
-                    if(level==2)std::cout << inpu_size<< ": ou[" << ou_add << "] = ";
-                    for (int i = 1; i < 10; i++)
+                    //if (level == 2)std::cout << inpu_size<< ": ou[" << ou_add << "] = ";
+                    for (int i = 9; i > 0; i--)
                     {
                         if (windowPosi[i] >=0) {
                             ou[ou_add] += in[windowPosi[i]] * window[i];
-                            if (level == 2)std::cout << in[windowPosi[i]] * window[i] <<"("<< windowPosi[i] <<")+";
+                            //if (level == 2)std::cout << in[windowPosi[i]] * window[i] <<"("<< windowPosi[i] <<")+";
+                            windowPosi[i] = windowPosi[i] + conv.stride;
                         }
                         else {
                             windowPosi[i] = windowPosi[i + 1] - 1;
                             if (col == 0) { windowPosi[1] = -100; windowPosi[2] = -100;windowPosi[3] = -100;}
                             
-                            if (level == 2)std::cout << 0 << "(" << -1 << ")+";
+                            //if (level == 2)std::cout << 0 << "(" << -1 << ")+";
                         }
                         
-                        windowPosi[i] = windowPosi[i] + conv.stride;
+                        
                     }
-                    if (level == 2)std::cout << " = "<<ou[ou_add]<<" at ("<<col<<","<<row-1<<")\n";
+                    //if(level == 2)std::cout << " = "<<ou[ou_add]<<" at ("<<col<<","<<row-1<<")\n";
                     ou[ou_add] += conv.p_bias[ou_size]/conv.in_channels;
                     
                     ou_add++;
@@ -147,18 +166,22 @@ float* flat(float* in) {
     float* ou = new float[2];
     float* w = fc_params->p_weight;
     float* bias = fc_params->p_bias;
-    std::cout << in[2048];
-    std::cout << in[2047];
+    std::cout <<"\nflat[2048]:"<< in[2048];
+    std::cout << "\nflat[2047]:" << in[2047];
     float a = bias[0];
     float b = bias[1];
-    int i = 0;
-    for (; i < 2048; i++)
+    int j = 0;
+    int ii = 0;
+        
+    for (int i = 0; i < 2048; i++)
     {
-        a += in[i] * w[i];
-    }
-    for (int j = 0; j < 2048; i++,j++)
-    {
-        b += in[j] * w[i];
+        //a += in[i] * w[ii++];
+        //b += in[i] * w[ii++];
+        a += in[i] * w[ii];
+        b += in[i] * w[ii+2048];
+        ii++;
+        std::cout << "\nthe i: " << i << " is " << in[i];
+        //std::cout << "With i:" << i << " a:" << a << " b:" << b << "\n";
     }
     ou[0] = a;
     ou[1] = b;
@@ -197,24 +220,33 @@ int main() {
     now_size = 30;
     thep = reLu(thep, 32 * 30 * 30);
     thep = maxPool(thep,32);//may right 32x15x15
-
+    ////test start
+    //for (int i = 0; i < 2048; i++)//4096 65536
+    //{
+    //    std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
+    //}
+    ////std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
+    ////std::cout << "posi: " << 2048 << " num:" << thep[2048] << std::endl;
+    ////test con
     now_size = 15;
     thep = conV(thep, 2);//32x8x8
-    //test start
-    for (int i = 0; i < 2048; i++)//4096 65536
-    {
-        std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
-    }
-    //std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
-    std::cout << "posi: " << 2048 << " num:" << thep[2048] << std::endl;
-    //test con
-    thep = reLu(thep,32*16*16);
+    now_size = 8;
+    thep = reLu(thep,32*8*8);
 
     thep = flat(thep);
     std::cout << "\n a:" << thep[0];
     std::cout << "\n b:" << thep[1];
-    std::cout << "\na+b" << thep[0] + thep[1];
-
+    double a = 400;
+    double b = 471;
+    float e = 2.71828182845f;
+    float ae = exp(a);
+    float be = exp(b);
+    float ans = ae/(ae+be);
+    std::cout << "\na+b:" << ae+be;
+    std::cout << "\nae:" << ae;
+    std::cout << "\nbe:" << be;
+    std::cout << "\n400e:" << exp(471.728);
+    std::cout << "\n" << ans;
 	
 
 	return 0;
