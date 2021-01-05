@@ -1,10 +1,14 @@
 #include "head.h"
 #include "face_binary_cls.cpp"
 #include<exception>
+#include <chrono>
 #include <algorithm>
 #include<cmath>
 #define MAX_FLOAT_SIZE 65600
+using namespace std;
+using namespace chrono;
 using namespace cv;
+
 
 int now_size;
 float* BGRaINI(Mat img, float* in)
@@ -69,8 +73,8 @@ float* conV(float* in, int level) {
                     windowPosi[9] = (col + 2) * now_size + 2 + inpu_size * now_size * now_size;
 
                 }
-                else if (level == 0) {
-                    //level 0
+                else  {
+                    //level 0 2
                     windowPosi[1] = -100; //col * 2 * now_size + inpu_size * now_size * now_size;
                     windowPosi[2] = (col * 2 - 1) * now_size + inpu_size * now_size * now_size;
                     windowPosi[3] = (col * 2 - 1) * now_size + 1 + inpu_size * now_size * now_size;
@@ -87,28 +91,22 @@ float* conV(float* in, int level) {
                     }
 
                 }
+
                 for (int row = 1; row < loopNum + 1; row++)
                 {
                     //if (level == 2)std::cout << inpu_size<< ": ou[" << ou_add << "] = ";
                     for (int i = 9; i > 0; i--)
                     {
-
-                        if (level == 2 && windowPosi[i] >= 225) {
-                            windowPosi[i] = -100;
-                        }
+                        if (conv.pad==1&&row == loopNum) {if(i == 9 || i == 3 || i == 6)continue;}
+                        if (conv.pad == 1 && col == loopNum-1) { if (i == 9 || i == 8 || i == 7)continue; }
                         if (windowPosi[i] >= 0) {
-                            if (level == 2 && windowPosi[i] > ((i - 1) / 3 + col*2) * 15) {
-                                windowPosi[i] = windowPosi[i] + conv.stride;
-                                continue;
-                            }
                             ou[ou_add] += in[windowPosi[i]] * window[i];
                             //if (level == 2)std::cout << in[windowPosi[i]] * window[i] <<"("<< windowPosi[i] <<")+";
-                            windowPosi[i] = windowPosi[i] + conv.stride;
+                            windowPosi[i] = windowPosi[i] + conv.stride;  
                         }
                         else {
                             windowPosi[i] = windowPosi[i + 1] - 1;
                             if (col == 0) { windowPosi[1] = -100; windowPosi[2] = -100; windowPosi[3] = -100; }
-
                             //if (level == 2)std::cout << 0 << "(" << -1 << ")+";
                         }
 
@@ -145,8 +143,9 @@ float* maxPool(float* in, int l) {
             {
                 ou[ou_add] = in[col * now_size + row + i * now_size * now_size] > ou[ou_add] ? in[col * now_size + row + i * now_size * now_size] : ou[ou_add];
                 ou[ou_add] = in[col * now_size + row + 1 + i * now_size * now_size] > ou[ou_add] ? in[col * now_size + row + 1 + i * now_size * now_size] : ou[ou_add];
-                ou[ou_add] = in[(col + 1) * now_size + row + i * now_size * now_size] > ou[ou_add] ? in[(col + 1) * now_size + row + i * now_size * now_size] > ou[ou_add] : ou[ou_add];
+                ou[ou_add] = in[(col + 1) * now_size + row + i * now_size * now_size] > ou[ou_add] ? in[(col + 1) * now_size + row + i * now_size * now_size]  : ou[ou_add];
                 ou[ou_add] = in[(col + 1) * now_size + row + 1 + i * now_size * now_size] > ou[ou_add] ? in[(col + 1) * now_size + row + 1 + i * now_size * now_size] : ou[ou_add];
+                //if(l==32)std::cout << "\nfor " << in[col * now_size + row + i * now_size * now_size] << " " << in[col * now_size + row + 1 + i * now_size * now_size] << " " << in[(col + 1) * now_size + row + i * now_size * now_size] << " " << in[(col + 1) * now_size + row + 1 + i * now_size * now_size] << " we choose:" << ou[ou_add];
                 ou_add++;
                 row++;
             }
@@ -156,33 +155,42 @@ float* maxPool(float* in, int l) {
     delete[] in;
     return ou;
 }
-float* flat(float* in) {
-    float* ou = new float[2];
-    float* w = fc_params->p_weight;
-    float* bias = fc_params->p_bias;
-    std::cout << "\nflat[2048]:" << in[2048];
-    std::cout << "\nflat[2047]:" << in[2047];
-    float a = bias[0];
-    float b = bias[1];
-    int j = 0;
-    int ii = 0;
-
-    for (int i = 0; i < 2048; i++)
+float* flat(float* in,int level) {
+    
+    fc_param fc = fc_params[level];
+    float* ou = new float[fc.out_features];
+    float* w = fc.p_weight;
+    float* bias = fc.p_bias;
+    for (int i = 0; i < fc.out_features; i++)
     {
-        a += in[i] * w[ii++];
-        b += in[i] * w[ii++];
-        //a += in[i] * w[ii];
-        //b += in[i] * w[ii + 2048];
-        //ii++;
-        //std::cout << "\nthe i: " << i << " is " << in[i];
-        //std::cout << "With i:" << i << " a:" << a << " b:" << b << "\n";
+        ou[i] = bias[i];
     }
-    ou[0] = a;
-    ou[1] = b;
+    int w_add = 0;
+    for (int ouu = 0; ouu < fc.out_features; ouu++)
+    {
+        for (int inn = 0; inn < fc.in_features; inn++)
+        {
+            ou[ouu] += in[inn] * w[w_add++];
+        }
+    }
     return ou;
 }
+void SoftMax(float* fcl, int size)
+{
+    float sum = 0;
+    for (int i = 0; i < size; i++)
+    {
+        sum += exp(fcl[i]);
+    }
+    for (int i = 0; i < size; i++)
+    {
+        fcl[i] = exp(fcl[i]) / sum;
+    }
+}
 int main() {
-    Mat image = imread("1.jpg");
+    char* inpu_name = new char[30];
+    cin >> inpu_name;
+    Mat image = imread(inpu_name);
     //imshow("myPic", image); 
     //waitKey(0);
  /*   conv_param conv = conv_params[0];
@@ -202,6 +210,7 @@ int main() {
     }*/
     now_size = 128;
     float* thep = new float[MAX_FLOAT_SIZE];
+    auto start = std::chrono::steady_clock::now();
     thep = BGRaINI(image, thep);
 
     thep = conV(thep, 0);//over no problem output: 16x64x64
@@ -214,35 +223,33 @@ int main() {
     now_size = 30;
 
     thep = reLu(thep, 32 * 30 * 30);
+
     thep = maxPool(thep, 32);//may right 32x15x15
-        //test start
-    for (int i = 0; i < 200; i++)//4096 65536
-    {
-        std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
-    }
-    //std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
-    //std::cout << "posi: " << 2048 << " num:" << thep[2048] << std::endl;
-    //test con
     now_size = 15;
     thep = conV(thep, 2);//32x8x8
     now_size = 8;
     thep = reLu(thep, 32 * 8 * 8);
 
-    thep = flat(thep);
-    std::cout << "\n a:" << thep[0];
-    std::cout << "\n b:" << thep[1];
-    double a = 400;
-    double b = 471;
-    float e = 2.71828182845f;
-    float ae = exp(a);
-    float be = exp(b);
-    float ans = ae / (ae + be);
-    std::cout << "\na+b:" << ae + be;
-    std::cout << "\nae:" << ae;
-    std::cout << "\nbe:" << be;
-    std::cout << "\n400e:" << exp(471.728);
-    std::cout << "\n" << ans;
+    thep = flat(thep,0);
+    SoftMax(thep, fc_params->out_features);
 
+    auto end = std::chrono::steady_clock::now();
+    printf("%s%.4f\n", "Score of background: ", thep[0]);
+    cout << "---------------------------------------" << endl;
+    printf("%s%.4f\n", "Score of face      : ", thep[1]);
+    cout << "---------------------------------------" << endl;
+    printf("%s%lld%s", "calculation takes ", duration_cast<std::chrono::milliseconds>(end - start).count(), " ms\n");
+    imshow("the_pic", image);
+    waitKey(0);
+
+////test start
+//for (int i = 1800; i < 2700; i++)//4096 65536
+//{
+//    std::cout << "posi: " << i << " num:" << thep[i] << std::endl;
+//}
+////std::cout << "posi: " << 28800 << " num:" << thep[28800] << std::endl;
+////std::cout << "posi: " << 2048 << " num:" << thep[2048] << std::endl;
+////test con
 
     return 0;
 }
